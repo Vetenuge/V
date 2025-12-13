@@ -1,0 +1,998 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>ATDWF</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    /*
+    
+    "And The Dots Will Fade"
+    
+    xx-xx-xx-xx
+    
+    A screensaver of dots against a galactic something. Idk 
+    anymore, I'm so tired after burning through hundreds of 
+    prompts to make this :P
+    
+    (Ignore the fact that these are randomly generated elements, 
+    O|•• OOO|• OOO| OO• O|• OOO O|• OOO| OOO| O OO|•••• OOO| 
+    O•••• OO OO|•••• OOO| OO OOO| O••• O O|• OO|••• OO OOO|• 
+    OO|•••• OOO| OO O• O|•••• OO OOO| OO•••• OOO| O••• O|• OOO| 
+    O|• OO• OO• O O|• OO••• O|• OO•••• OOO| O••• O O|••• O••• 
+    O|• OO|•••• OO|•••• O OO|•• O•• OO••• OO OOO|••• OO•••• N/A 
+    OOO OO OOO|• OO|••• O|• OOO OO OO|•••• O O|•••• O|• OOO O• 
+    O•••• OO|•••• O|•••• OOO| O••• O OO|••• OOO| OO O|•• O 
+    OO|••• O•••• OO•••• OO•••• O•••• OO|•••• O••)
+    
+    Use the spacebar to activate a console that will allow you
+    to create a 4x4 slideshow composed of images of your choice.
+    This program is mainly used to display CLD characters.
+    
+    (But it looks so scuffed and honestly it could look 1000 
+    times better, so please forgive me if I change it in the 
+    future XPPP)
+    
+    Made solely by OneCompiler, Qwen, and Microsoft Copilot with 
+    no CSS tweaks by Vetenuge, that weiner.
+    
+    (Part of a Vetenuge ARG :3)
+    
+    */
+    html, body { 
+      height: 100%; 
+      margin: 0; 
+      background: rgb(20,10,40); 
+      overflow: hidden; 
+      font-family: Arial, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+    }
+    canvas { 
+      display: block; 
+      width: 100vw; 
+      height: 100vh; 
+      touch-action: none; 
+      cursor: default; 
+    }
+    .console-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .console-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .console-container {
+      background: #111;
+      border: 2px solid #666;
+      width: 70%;
+      max-width: 800px;
+      padding: 15px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+      max-height: 85vh;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .console-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #444;
+    }
+    .console-title {
+      color: #fff;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .console-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin: 0 auto;
+      justify-content: center;
+      max-width: 280px;       
+      min-height: 300px;
+      flex-grow: 0;            
+      }
+    .grid-item {
+      background: #222;
+      border: 1px dashed #555;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      aspect-ratio: 1;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      font-size: 12px;
+      text-align: center;
+      color: #aaa;
+      padding: 5px;
+      height: 60px;
+      width: 60px;
+    }
+    .grid-item img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    .grid-item:hover {
+      border-color: #88f;
+      background-color: #333;
+    }
+    .console-footer {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #444;
+    }
+    .slide-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .slide-counter {
+      color: #ccc;
+      font-size: 16px;
+      min-width: 120px;
+      text-align: center;
+    }
+    .nav-buttons {
+      display: flex;
+      gap: 8px;
+    }
+    .nav-btn {
+      width: 36px;
+      height: 36px;
+      background: #333;
+      border: 1px solid #666;
+      color: white;
+      font-size: 18px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .nav-btn:hover {
+      background: #444;
+    }
+    .nav-btn:active {
+      background: #555;
+    }
+    .play-btn {
+      background: #4a8;
+      border: 1px solid #6c9;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      padding: 10px 25px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: block;
+      margin: 0 auto;
+      width: 200px;
+    }
+    .play-btn:hover {
+      background: #5b9;
+    }
+    .play-btn:active {
+      background: #6ca;
+    }
+    .instructions {
+      position: absolute;
+      bottom: 15px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+    .instructions.show {
+      opacity: 1;
+    }
+    .slideshow-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);  
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding: 20px;
+      box-sizing: border-box;
+      z-index: 5;
+      pointer-events: none;
+      max-width: 600px; 
+      max-height: 600px; 
+      }
+    .slide-item {
+      aspect-ratio: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+    .slide-item img {
+      max-width: 95%;
+      max-height: 95%;
+      object-fit: contain;
+    }
+    .slide-item.visible {
+      opacity: 1;
+    }
+    .config-buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .config-btn {
+      background: #444;
+      border: 1px solid #666;
+      color: white;
+      padding: 6px 12px;
+      cursor: pointer;
+      flex: 1;
+      text-align: center;
+    }
+    .config-btn:hover {
+      background: #555;
+    }
+    .grid-label {
+      position: absolute;
+      bottom: 2px;
+      right: 4px;
+      background: rgba(0,0,0,0.6);
+      color: #888;
+      font-size: 10px;
+      padding: 1px 3px;
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="screen"></canvas>
+  
+  <div class="console-overlay">
+    <div class="console-container">
+      <div class="console-header">
+        <div class="console-title">IMAGE SLIDESHOW CONSOLE</div>
+        <div class="slide-counter">Slide <span id="current-slide">1</span> of <span id="total-slides">1</span></div>
+      </div>
+      
+      <div class="console-grid" id="image-grid">
+      </div>
+      
+      <div class="console-footer">
+        <div class="config-buttons">
+          <button class="config-btn" id="add-slide">+ Slide</button>
+          <button class="config-btn" id="remove-slide">- Slide</button>
+          <button class="config-btn" id="export-config">Export</button>
+          <button class="config-btn" id="import-config">Import</button>
+        </div>
+        
+        <div class="slide-controls">
+          <div class="nav-buttons">
+            <div class="nav-btn" id="prev-slide">❮</div>
+          </div>
+          <div class="slide-counter">Slide <span id="current-slide-bottom">1</span> of <span id="total-slides-bottom">1</span></div>
+          <div class="nav-buttons">
+            <div class="nav-btn" id="next-slide">❯</div>
+          </div>
+        </div>
+        
+        <button class="play-btn" id="play-slideshow">START SLIDESHOW</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="slideshow-container" id="slideshow-container">
+  </div>
+  
+  <div class="instructions"></div>
+  
+  <input type="file" id="file-input" accept="image/*" style="display: none">
+  
+  <script>
+  (function () {
+    const AUTO_ENABLED = true;
+    const AUTO_MIN_MS = 100;
+    const AUTO_MAX_MS = 500;
+    const BG_BASE = { r: 20, g: 10, b: 40 };
+    const BG_TARGET = { r: 40, g: 10, b: 80 };
+    const PULSE_COLOR = { r: 200, g: 150, b: 255 };
+    const RADIUS_MIN = 10;
+    const RADIUS_MAX = 30;
+    const SPEED_FOR_SMALL = 1.5;
+    const SPEED_FOR_LARGE = 18.0;
+    const SPEED_JITTER = 0.6;
+    const PULSE_MAX_FOR_SMALL = 50;
+    const PULSE_MAX_FOR_LARGE = 200;
+    const PULSE_SPEED_FOR_SMALL = 30;
+    const PULSE_SPEED_FOR_LARGE = 20;
+    const PULSE_ALPHA_FOR_SMALL = 0.4;
+    const PULSE_ALPHA_FOR_LARGE = 0.1;
+    const BG_OSC_FREQ = 0.2;
+    const BG_OSC_AMPLITUDE = 1.0;
+    const BG_OSC_PHASE = 0;
+    const BG_PULSE_DURATION = 1.2;
+    const BG_PULSE_STRENGTH = 0.45;
+    const BG_PULSE_SMOOTH = 3;
+    const RING_ALPHA_BOOST = 1.25;
+    const RING_WIDTH_FACTOR = 0.5;
+    const RING_MIN_WIDTH = 6;
+    const RING_MAX_WIDTH = 30;
+    const LINGER_FRACTION = 1 / 3;
+    const FADE_DURATION = 0.1;
+    const FADE_TRIGGER = 200;
+    const SPAWN_LIMIT = 400;
+    const CIRCLE_YELLOW = { r: 255, g: 255, b: 255 };
+    const CIRCLE_RED    = { r: 255, g: 255, b: 255 };
+    const SLIDESHOW_WAIT_AFTER_RESTART = 5;
+    const SLIDESHOW_WAIT_BEFORE_IMAGES = 10;
+    const SLIDESHOW_ITEM_FADE_DURATION = 0.4;
+    const SLIDESHOW_WAIT_BETWEEN_ITEMS = 0.15;
+    const SLIDESHOW_WAIT_AFTER_ALL_ITEMS = 5;
+    const SLIDESHOW_ROW_FADE_DURATION = 0.6;
+    const SLIDESHOW_WAIT_BETWEEN_ROWS = 0.3;
+    const SLIDESHOW_WAIT_AFTER_SLIDE = 1;
+    const canvas = document.getElementById('screen');
+    const ctx = canvas.getContext('2d', { alpha: true });
+    const consoleOverlay = document.querySelector('.console-overlay');
+    const slideshowContainer = document.getElementById('slideshow-container');
+    const imageGrid = document.getElementById('image-grid');
+    const currentSlideEl = document.getElementById('current-slide');
+    const totalSlidesEl = document.getElementById('total-slides');
+    const currentSlideBottomEl = document.getElementById('current-slide-bottom');
+    const totalSlidesBottomEl = document.getElementById('total-slides-bottom');
+    const instructionsEl = document.querySelector('.instructions');
+    const fileInput = document.getElementById('file-input');
+    const playButton = document.getElementById('play-slideshow');
+    const circles = [];
+    const pulses = [];
+    const bgPulses = [];
+    let autoTimerId = null;
+    let autoEnabled = AUTO_ENABLED;
+    let currentT = 0;
+    let lastTime = performance.now();
+    let elapsed = 0;
+    let prevRawOsc = 0;
+    let prevRawOscDt = 0;
+    let consoleOpen = false;
+    let slideshowActive = false;
+    let restartPending = false;
+    let slideshowStartTime = 0;
+    let currentSlideIndex = 0;
+    let currentImageIndex = 0;
+    let currentRowIndex = 0;
+    let slideshowState = 'not_started';
+    let isAnimationRunning = true;
+    let slides = [[]];
+    for (let i = 0; i < 16; i++) {
+      slides[0].push(null);
+    }
+    loadConfigFromStorage();
+    function randBetween(min, max) { return min + Math.random() * (max - min); }
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function initUI() {
+      for (let i = 0; i < 16; i++) {
+        const item = document.createElement('div');
+        item.className = 'grid-item';
+        item.dataset.index = i;
+        item.innerHTML = `Slot ${i+1}`;
+        const label = document.createElement('div');
+        label.className = 'grid-label';
+        label.textContent = `${Math.floor(i/4) + 1},${i%4 + 1}`;
+        item.appendChild(label);
+        item.addEventListener('click', () => openFilePicker(i));
+        item.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          item.style.borderColor = '#88f';
+          item.style.backgroundColor = '#333';
+        });
+        item.addEventListener('dragleave', () => {
+          item.style.borderColor = '#555';
+          item.style.backgroundColor = '#222';
+        });
+        item.addEventListener('drop', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          item.style.borderColor = '#555';
+          item.style.backgroundColor = '#222';
+          if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            handleFileUpload(e.dataTransfer.files[0], i);
+          }
+        });
+        imageGrid.appendChild(item);
+      }
+      for (let i = 0; i < 16; i++) {
+        const item = document.createElement('div');
+        item.className = 'slide-item';
+        item.dataset.index = i;
+        slideshowContainer.appendChild(item);
+      }
+      document.getElementById('prev-slide').addEventListener('click', prevSlide);
+      document.getElementById('next-slide').addEventListener('click', nextSlide);
+      document.getElementById('add-slide').addEventListener('click', addSlide);
+      document.getElementById('remove-slide').addEventListener('click', removeSlide);
+      document.getElementById('export-config').addEventListener('click', exportConfig);
+      document.getElementById('import-config').addEventListener('click', importConfig);
+      playButton.addEventListener('click', startSlideshow);
+      fileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0] && currentUploadIndex !== null) {
+          handleFileUpload(e.target.files[0], currentUploadIndex);
+        }
+        currentUploadIndex = null;
+        fileInput.value = '';
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+          e.preventDefault();
+          toggleConsole();
+        }
+      });
+      instructionsEl.classList.add('show');
+      setTimeout(() => {
+        instructionsEl.classList.remove('show');
+      }, 3000);
+      updateSlideCounter();
+      loadSlidePreview(0);
+      isAnimationRunning = true;
+      scheduleNextAutoSpawn();
+    }
+    let currentUploadIndex = null;
+    function openFilePicker(index) {
+      currentUploadIndex = index;
+      fileInput.click();
+    }
+    function handleFileUpload(file, index) {
+      if (!file.type.match('image.*')) {
+        alert('Please select an image file (PNG, JPG, JPEG, GIF, BMP, WEBP)');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const imageUrl = e.target.result;
+        slides[currentSlideIndex][index] = imageUrl;
+        saveConfigToStorage();
+        loadSlidePreview(currentSlideIndex);
+      };
+      reader.readAsDataURL(file);
+    }
+    function updateSlideCounter() {
+      currentSlideEl.textContent = currentSlideIndex + 1;
+      totalSlidesEl.textContent = slides.length;
+      currentSlideBottomEl.textContent = currentSlideIndex + 1;
+      totalSlidesBottomEl.textContent = slides.length;
+    }
+    function prevSlide() {
+      currentSlideIndex = (currentSlideIndex - 1 + slides.length) % slides.length;
+      loadSlidePreview(currentSlideIndex);
+      updateSlideCounter();
+    }
+    function nextSlide() {
+      currentSlideIndex = (currentSlideIndex + 1) % slides.length;
+      loadSlidePreview(currentSlideIndex);
+      updateSlideCounter();
+    }
+    function addSlide() {
+      const newSlide = [];
+      for (let i = 0; i < 16; i++) {
+        newSlide.push(null);
+      }
+      slides.push(newSlide);
+      updateSlideCounter();
+      saveConfigToStorage();
+    }
+    function removeSlide() {
+      if (slides.length > 1) {
+        slides.splice(currentSlideIndex, 1);
+        if (currentSlideIndex >= slides.length) {
+          currentSlideIndex = slides.length - 1;
+        }
+        loadSlidePreview(currentSlideIndex);
+        updateSlideCounter();
+        saveConfigToStorage();
+      } else {
+        alert("Cannot remove the last slide");
+      }
+    }
+    function exportConfig() {
+      const config = {
+        slides: slides.map(slide => slide.map(img => img ? img : null))
+      };
+      const dataStr = "text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", "screensaver_config.json");
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+    }
+    function importConfig() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          try {
+            const config = JSON.parse(event.target.result);
+            if (config.slides && Array.isArray(config.slides)) {
+              slides = config.slides.map(slide => 
+                Array.isArray(slide) ? slide.slice(0, 16).concat(Array(16 - slide.length).fill(null)) : Array(16).fill(null)
+              );
+              currentSlideIndex = 0;
+              loadSlidePreview(currentSlideIndex);
+              updateSlideCounter();
+              saveConfigToStorage();
+              alert("Configuration imported successfully!");
+            } else {
+              alert("Invalid configuration file format");
+            }
+          } catch (error) {
+            alert("Error parsing configuration file: " + error.message);
+          }
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    }
+    function saveConfigToStorage() {
+      try {
+        localStorage.setItem('screensaverConfig', JSON.stringify({
+          slides: slides
+        }));
+      } catch (e) {
+        console.warn("Could not save configuration to localStorage:", e);
+      }
+    }
+    function loadConfigFromStorage() {
+      try {
+        const saved = localStorage.getItem('screensaverConfig');
+        if (saved) {
+          const config = JSON.parse(saved);
+          if (config.slides && Array.isArray(config.slides)) {
+            slides = config.slides.map(slide => 
+              Array.isArray(slide) ? slide.slice(0, 16).concat(Array(16 - slide.length).fill(null)) : Array(16).fill(null)
+            );
+            if (slides.length === 0) {
+              slides = [[]];
+              for (let i = 0; i < 16; i++) {
+                slides[0].push(null);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Could not load configuration from localStorage:", e);
+      }
+    }
+    function loadSlidePreview(slideIndex) {
+      const slide = slides[slideIndex];
+      const items = imageGrid.querySelectorAll('.grid-item');
+      items.forEach((item) => {
+        const imgIndex = parseInt(item.dataset.index);
+        item.innerHTML = '';
+        if (slide[imgIndex]) {
+          const img = document.createElement('img');
+          img.src = slide[imgIndex];
+          img.alt = `Slide ${slideIndex + 1} image ${imgIndex + 1}`;
+          img.onerror = () => {
+            item.innerHTML = `Error ${imgIndex+1}`;
+            item.style.color = '#f66';
+            const label = document.createElement('div');
+            label.className = 'grid-label';
+            label.textContent = `${Math.floor(imgIndex/4) + 1},${imgIndex%4 + 1}`;
+            item.appendChild(label);
+          };
+          item.appendChild(img);
+        } else {
+          item.innerHTML = `Slot ${imgIndex+1}`;
+          item.style.color = '#aaa';
+          const label = document.createElement('div');
+          label.className = 'grid-label';
+          label.textContent = `${Math.floor(imgIndex/4) + 1},${imgIndex%4 + 1}`;
+          item.appendChild(label);
+        }
+      });
+    }
+    function restartAnimationSystem() {
+      circles.length = 0;
+      pulses.length = 0;
+      bgPulses.length = 0;
+      if (autoTimerId) {
+        clearTimeout(autoTimerId);
+        autoTimerId = null;
+      }
+      isAnimationRunning = false;
+      elapsed = 0;
+      currentT = 0;
+      prevRawOsc = 0;
+      prevRawOscDt = 0;
+    }
+    function startAnimationSystem() {
+      isAnimationRunning = true;
+      autoEnabled = true;
+      scheduleNextAutoSpawn();
+    }
+    function startSlideshow() {
+      console.log("Starting slideshow...");
+      consoleOpen = false;
+      consoleOverlay.classList.remove('active');
+      restartAnimationSystem();
+      slideshowActive = true;
+      slideshowState = 'waiting_after_restart';
+      slideshowStartTime = performance.now() / 1000;
+      document.querySelectorAll('.slide-item').forEach(item => {
+        item.innerHTML = '';
+        item.style.opacity = '0';
+        item.classList.remove('visible');
+      });
+      currentSlideIndex = 0;
+      currentImageIndex = 0;
+      currentRowIndex = 0;
+      console.log("Slideshow initialized, waiting for restart period...");
+    }
+    function toggleConsole() {
+      consoleOpen = !consoleOpen;
+      consoleOverlay.classList.toggle('active', consoleOpen);
+      if (consoleOpen) {
+        loadSlidePreview(currentSlideIndex);
+        updateSlideCounter();
+      }
+    }
+    function updateSlideshow(currentTime) {
+      if (!slideshowActive) return;
+      const elapsedTime = currentTime - slideshowStartTime;
+      switch(slideshowState) {
+        case 'waiting_after_restart':
+          if (elapsedTime >= SLIDESHOW_WAIT_AFTER_RESTART) {
+            console.log("Restart period ended, starting animation system...");
+            startAnimationSystem();
+            slideshowState = 'waiting_before_images';
+            slideshowStartTime = currentTime;
+          }
+          break;
+        case 'waiting_before_images':
+          if (elapsedTime >= SLIDESHOW_WAIT_BEFORE_IMAGES) {
+            console.log("Starting slideshow fade-in sequence...");
+            slideshowState = 'fading_in_items';
+            slideshowStartTime = currentTime;
+            currentImageIndex = 0;
+            fadeNextImage();
+          }
+          break;
+        case 'fading_in_items':
+          const itemProgress = Math.min(1, elapsedTime / SLIDESHOW_ITEM_FADE_DURATION);
+          updateCurrentItemImageOpacity(itemProgress);
+          if (elapsedTime >= SLIDESHOW_ITEM_FADE_DURATION) {
+            currentImageIndex++;
+            while (currentImageIndex < 16 && !slides[currentSlideIndex][currentImageIndex]) {
+              currentImageIndex++;
+            }
+            if (currentImageIndex < 16) {
+              slideshowState = 'waiting_between_items';
+              slideshowStartTime = currentTime;
+            } else {
+              console.log("All items faded in, waiting before fade-out...");
+              slideshowState = 'waiting_after_items';
+              slideshowStartTime = currentTime;
+            }
+          }
+          break;
+        case 'waiting_between_items':
+          if (elapsedTime >= SLIDESHOW_WAIT_BETWEEN_ITEMS) {
+            slideshowState = 'fading_in_items';
+            slideshowStartTime = currentTime;
+            fadeNextImage();
+          }
+          break;
+        case 'waiting_after_items':
+          if (elapsedTime >= SLIDESHOW_WAIT_AFTER_ALL_ITEMS) {
+            console.log("Starting fade-out sequence...");
+            slideshowState = 'fading_out_rows';
+            slideshowStartTime = currentTime;
+            currentRowIndex = 0;
+            fadeOutCurrentRow();
+          }
+          break;
+        case 'fading_out_rows':
+          const rowProgress = Math.min(1, elapsedTime / SLIDESHOW_ROW_FADE_DURATION);
+          updateCurrentRowOpacity(1 - rowProgress);
+          if (elapsedTime >= SLIDESHOW_ROW_FADE_DURATION) {
+            currentRowIndex++;
+            if (currentRowIndex < 4) {
+              slideshowState = 'waiting_between_rows';
+              slideshowStartTime = currentTime;
+            } else {
+              console.log("All rows faded out, waiting before next slide...");
+              slideshowState = 'waiting_after_slide';
+              slideshowStartTime = currentTime;
+            }
+          }
+          break;
+        case 'waiting_between_rows':
+          if (elapsedTime >= SLIDESHOW_WAIT_BETWEEN_ROWS) {
+            slideshowState = 'fading_out_rows';
+            slideshowStartTime = currentTime;
+            fadeOutCurrentRow();
+          }
+          break;
+        case 'waiting_after_slide':
+          if (elapsedTime >= SLIDESHOW_WAIT_AFTER_SLIDE) {
+            currentSlideIndex++;
+            if (currentSlideIndex < slides.length) {
+              console.log(`Moving to next slide: ${currentSlideIndex + 1}`);
+              document.querySelectorAll('.slide-item').forEach(item => {
+                item.innerHTML = '';
+                item.style.opacity = '0';
+                item.classList.remove('visible');
+              });
+              currentImageIndex = 0;
+              currentRowIndex = 0;
+              slideshowState = 'fading_in_items';
+              slideshowStartTime = currentTime;
+              fadeNextImage();
+            } else {
+              console.log("All slides completed, ending slideshow...");
+              endSlideshow();
+            }
+          }
+          break;
+      }
+    }
+    function fadeNextImage() {
+      if (currentImageIndex >= 16) return;
+      const slide = slides[currentSlideIndex];
+      const item = slideshowContainer.children[currentImageIndex];
+      if (slide[currentImageIndex]) {
+        item.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = slide[currentImageIndex];
+        img.alt = `Slide ${currentSlideIndex + 1} item ${currentImageIndex + 1}`;
+        item.appendChild(img);
+        item.classList.add('visible');
+      }
+    }
+    function updateCurrentItemImageOpacity(progress) {
+      if (currentImageIndex >= 16) return;
+      const item = slideshowContainer.children[currentImageIndex];
+      if (item.classList.contains('visible')) {
+        item.style.opacity = progress;
+      }
+    }
+    function fadeOutCurrentRow() {
+      const startIdx = currentRowIndex * 4;
+      const endIdx = startIdx + 4;
+      for (let i = startIdx; i < endIdx; i++) {
+        const item = slideshowContainer.children[i];
+        if (item.classList.contains('visible')) {
+          item.style.opacity = '1';
+        }
+      }
+    }
+    function updateCurrentRowOpacity(opacity) {
+      const startIdx = currentRowIndex * 4;
+      const endIdx = startIdx + 4;
+      for (let i = startIdx; i < endIdx; i++) {
+        const item = slideshowContainer.children[i];
+        if (item.classList.contains('visible')) {
+          item.style.opacity = opacity;
+        }
+      }
+    }
+    function endSlideshow() {
+      slideshowActive = false;
+      restartPending = false;
+      document.querySelectorAll('.slide-item').forEach(item => {
+        item.style.opacity = '0';
+      });
+      console.log("Slideshow ended.");
+    }
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      slideshowContainer.style.width = window.innerWidth + 'px';
+      slideshowContainer.style.height = window.innerHeight + 'px';
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    function createCircle(x, y) {
+      const total = circles.length + pulses.length;
+      if (total >= SPAWN_LIMIT) return null;
+      const initialR = randBetween(RADIUS_MIN, RADIUS_MAX);
+      const sizeNorm = clamp((initialR - RADIUS_MIN) / (RADIUS_MAX - RADIUS_MIN), 0, 1);
+      let speed = lerp(SPEED_FOR_SMALL, SPEED_FOR_LARGE, sizeNorm);
+      speed += randBetween(-SPEED_JITTER, SPEED_JITTER);
+      speed = Math.max(0.05, speed);
+      const cr = Math.round(lerp(CIRCLE_YELLOW.r, CIRCLE_RED.r, sizeNorm));
+      const cg = Math.round(lerp(CIRCLE_YELLOW.g, CIRCLE_RED.g, sizeNorm));
+      const cb = Math.round(lerp(CIRCLE_YELLOW.b, CIRCLE_RED.b, sizeNorm));
+      const color = `rgba(${cr},${cg},${cb},1)`;
+      const circle = { x, y, r: initialR, initialR, speed, color, alpha: 1, lingering: false, fading: false, fadeAge: 0 };
+      circles.push(circle);
+      return initialR;
+    }
+    function createPulseFromCircle(x, y, circleRadius) {
+      const total = circles.length + pulses.length;
+      if (total >= SPAWN_LIMIT) return;
+      const sizeNorm = clamp((circleRadius - RADIUS_MIN) / (RADIUS_MAX - RADIUS_MIN), 0, 1);
+      const maxR = lerp(PULSE_MAX_FOR_SMALL, PULSE_MAX_FOR_LARGE, sizeNorm);
+      const speed = lerp(PULSE_SPEED_FOR_SMALL, PULSE_SPEED_FOR_LARGE, sizeNorm);
+      const alpha = lerp(PULSE_ALPHA_FOR_SMALL, PULSE_ALPHA_FOR_LARGE, sizeNorm);
+      const bgInfluence = lerp(0.1, 0.3, sizeNorm);
+      pulses.push({ x, y, r: 0, maxR, speed, alpha, bgInfluence });
+    }
+    function spawnRandomPair() {
+      if (!isAnimationRunning) return;
+      if (restartPending && slideshowActive) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.random() * rect.width;
+      const y = Math.random() * rect.height;
+      const r = createCircle(x, y);
+      if (r !== null) createPulseFromCircle(x, y, r);
+      tryStartFadeIfNeeded();
+    }
+    function randomInterval(minMs, maxMs) { return Math.floor(minMs + Math.random() * (maxMs - minMs)); }
+    function scheduleNextAutoSpawn() {
+      if (!autoEnabled || !isAnimationRunning) return;
+      const delay = randomInterval(AUTO_MIN_MS, AUTO_MAX_MS);
+      autoTimerId = setTimeout(() => {
+        if (!autoEnabled || !isAnimationRunning) return;
+        spawnRandomPair();
+        scheduleNextAutoSpawn();
+      }, delay);
+    }
+    function createBgPulse(strength = BG_PULSE_STRENGTH, duration = BG_PULSE_DURATION) {
+      bgPulses.push({ age: 0, dur: duration, strength: strength });
+    }
+    function tryStartFadeIfNeeded() {
+      const total = circles.length + pulses.length;
+      if (total < FADE_TRIGGER) return;
+      if (circles.some(c => c.fading)) return;
+      for (let i = 0; i < circles.length; i++) {
+        const c = circles[i];
+        if (c.lingering && !c.fading) {
+          c.fading = true;
+          c.fadeAge = 0;
+          return;
+        }
+      }
+      for (let i = 0; i < circles.length; i++) {
+        const c = circles[i];
+        if (!c.fading) {
+          c.fading = true;
+          c.fadeAge = 0;
+          return;
+        }
+      }
+    }
+    function updateAndDraw(dt) {
+      elapsed += dt;
+      const dpr = window.devicePixelRatio || 1;
+      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      if (isAnimationRunning) {
+        for (let i = pulses.length - 1; i >= 0; i--) {
+          const p = pulses[i];
+          p.r += p.speed * dt;
+          if (p.r >= p.maxR) { pulses.splice(i, 1); continue; }
+          const t = clamp(1 - p.r / p.maxR, 0, 1);
+          const localAlpha = p.alpha * t;
+          const innerStop = clamp(0.70, 0, 0.95);
+          const grd = ctx.createRadialGradient(p.x, p.y, Math.max(1, p.r * 0.02), p.x, p.y, p.r);
+          grd.addColorStop(0, `rgba(${PULSE_COLOR.r},${PULSE_COLOR.g},${PULSE_COLOR.b},${localAlpha * 0.05})`);
+          grd.addColorStop(innerStop, `rgba(${PULSE_COLOR.r},${PULSE_COLOR.g},${PULSE_COLOR.b},0)`);
+          grd.addColorStop(0.98, `rgba(${PULSE_COLOR.r},${PULSE_COLOR.g},${PULSE_COLOR.b},${localAlpha * 0.65})`);
+          grd.addColorStop(1, `rgba(${PULSE_COLOR.r},${PULSE_COLOR.g},${PULSE_COLOR.b},0)`);
+          ctx.fillStyle = grd;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fill();
+          const ringWidth = clamp(p.r * RING_WIDTH_FACTOR, RING_MIN_WIDTH, RING_MAX_WIDTH);
+          const ringAlpha = clamp(localAlpha * RING_ALPHA_BOOST, 0, 1);
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.lineWidth = ringWidth;
+          ctx.strokeStyle = `rgba(${PULSE_COLOR.r},${PULSE_COLOR.g},${PULSE_COLOR.b},${ringAlpha})`;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalCompositeOperation = 'lighter';
+        }
+        for (let i = circles.length - 1; i >= 0; i--) {
+          const c = circles[i];
+          if (!c.lingering && !c.fading) {
+            c.r -= c.speed * dt;
+            const lingerR = c.initialR * LINGER_FRACTION;
+            if (c.r <= lingerR) {
+              c.r = lingerR;
+              c.lingering = true;
+              c.alpha = 0.7;
+            }
+          }
+          if (c.fading) {
+            c.fadeAge += dt;
+            const t = clamp(c.fadeAge / FADE_DURATION, 0, 1);
+            c.alpha = 1 - t;
+            if (c.alpha <= 0.01) { circles.splice(i, 1); continue; }
+          }
+          ctx.fillStyle = c.color;
+          ctx.globalAlpha = clamp(c.alpha, 0, 1);
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, Math.max(0.5, c.r), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        tryStartFadeIfNeeded();
+        const raw = Math.sin(2 * Math.PI * BG_OSC_FREQ * elapsed + BG_OSC_PHASE);
+        const oscillation = 0.5 * (raw + 1);
+        const rawDt = (raw - prevRawOsc) / Math.max(dt, 1e-6);
+        if (prevRawOscDt > 0 && rawDt <= 0) createBgPulse();
+        prevRawOsc = raw; prevRawOscDt = rawDt;
+        let pulseSum = 0;
+        for (let i = bgPulses.length - 1; i >= 0; i--) {
+          const bp = bgPulses[i];
+          bp.age += dt;
+          if (bp.age >= bp.dur) { bgPulses.splice(i, 1); continue; }
+          const x = bp.age / bp.dur;
+          const envelope = Math.exp(-Math.pow((x - 0.15) / 0.25, 2));
+          pulseSum += bp.strength * envelope;
+        }
+        const oscT = clamp(oscillation * BG_OSC_AMPLITUDE, 0, 1);
+        const finalT = clamp(oscT + pulseSum, 0, 1);
+        const smoothingFactor = 1 - Math.exp(-BG_PULSE_SMOOTH * dt);
+        currentT += (finalT - currentT) * smoothingFactor;
+        const br = Math.round(lerp(BG_BASE.r, BG_TARGET.r, currentT));
+        const bg = Math.round(lerp(BG_BASE.g, BG_TARGET.g, currentT));
+        const bb = Math.round(lerp(BG_BASE.b, BG_TARGET.b, currentT));
+        document.body.style.backgroundColor = `rgb(${br},${bg},${bb})`;
+      }
+      ctx.restore();
+    }
+    function animate(now) {
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+      updateAndDraw(dt);
+      updateSlideshow(now / 1000);
+      requestAnimationFrame(animate);
+    }
+    initUI();
+    requestAnimationFrame(animate);
+    canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+  })();
+  </script>
+</body>
+</html>
