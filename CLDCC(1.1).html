@@ -1,0 +1,1229 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CLDCC</title>
+  <style>
+    /*
+
+    "Updates"
+    
+    - Reduced the size of anchors
+    - Changed circle perimeter ring count from 24 to 48
+    - Added extra thick anchors along every 22.5 degree increment 
+    along the circle perimeter
+    
+    */
+    
+    /*
+    
+    "CLD Character Creator"
+    
+    Use the keybinds or the on-screen buttons to create your own CLD
+    character. Afterwards, you can download your character as a png
+    with a transparent background.
+    
+    xx-xx-xx-xx
+    
+    Elements:
+    
+    Anchor - A point where a dot or the handle of a line can snap 
+    onto. Doesn't appear in the character when exporting.
+    Circle - Houses 48 anchors at every 7.5 degree increment of its 
+    border and a central anchor. Lines and dots should not be allowed 
+    to cross its border.
+    Line - Contains 2 handles at its endpoints and an anchor at its 
+    midpoint. Drag the handle to snap them to other anchors. Both 
+    handles should be connected to an anchor.
+    Ghost line - Same as a line, but transparent and doesn't appear 
+    in the character when exporting. Useful for positioning dots
+    across specific lengths.
+    Dot - When they are created, their size is determined by the 
+    integer value in the integer box, with their default value being 
+    20. They can only snap to the central anchor of the circle and 
+    the midpoints of ghost anchors. They should be within the border 
+    of the circle, but don't necessarily have to snap to an anchor. 
+    (OO|• OO|•••• OO OOO|••• OO|•••• O• OO OO••• O|•• O O•••• 
+    OO|•••• O•• O|• OOO|•• O•••• O|•••• O|••• OOO|• OO• O|••• OO 
+    OO|•• OO|•• O O|••• OOO| OO OO••• OO•••• N/A)
+    
+    Top row console:
+    
+    "+" button - Add the currently selected element type in the 
+    dropdown box into the circle.
+    "-" button - Remove the last created element from the current 
+    element type selected in the dropdown box from the circle.
+    Dropdown box - Select between the element types "Line", "Ghost",
+    and "Dot" to determine the currently selected element type.
+    Integer box - With a range from 1-100, change the integer value
+    to determine the size of only dots as they are created.
+    
+    Bottom row console:
+    
+    Anchor visiblity toggle - Shows anchors when their button's 
+    circle is hollow and hides anchors when their button's circle 
+    is full.
+    Light theme toggle - Changes the entire theme of the webpage 
+    from light to dark and vice versa.
+    "V" button - Downloads your current character in the form of a
+    png with a transparent background.
+    
+    Keybinds:
+    
+    Cursor - Click on elements in the character to highlight and
+    select it/them. Drag around dots and the handles of lines.
+    A - "+" button
+    S - "-" button
+    D - Cycle through the next element type in the dropdown box.
+    F/G - Respectively increases or decreases the integer box's
+    value by 1.
+    Shift + F/G - Respectively increases or decreases the integer 
+    box's value by 5.
+    Z - Anchor visibility toggle
+    X - Light theme toggle
+    V - "V" button (lol)
+    Backspace/Delete - Remove the currently selected element.
+    
+    Made solely by OneCompiler, Qwen, and Microsoft Copilot with 
+    minor CSS tweaks by Vetenuge.
+    
+    (NOT part of a Vetenuge ARG :V)
+    
+    */
+    :root {
+      --canvas-bg: #ffffff;
+      --control-bg: #000000;
+      --control-fg: #ffffff;
+      --fg-color: #000000;
+      --highlight-color: #ffff00;
+      --canvas-size: min(920px, 100%);
+      --canvas-height: min(80vmin, 820px);
+      --control-height: 45px;
+      --control-padding: 8px 10px;
+      --control-radius: 8px;
+      --control-gap: 10px;
+      --ring-thickness: 30;
+      --ring-color: var(--fg-color);
+      --handle-radius: calc(var(--ring-thickness) * 0.2);
+      --handle-fill: var(--control-bg);
+      --handle-stroke: var(--control-fg);
+      --handle-stroke-width: 3;
+      --dot-fill: var(--fg-color);
+      --dot-stroke: var(--highlight-color);
+      --dot-stroke-width: 4;
+      --dot-selected-stroke: var(--highlight-color);
+      --anchor-radius: calc(var(--ring-thickness) * 0.2);
+      --anchor-center-radius: calc(var(--anchor-radius) * 1.155);
+      --anchor-fill: var(--control-bg);
+      --anchor-stroke: var(--control-fg);
+      --anchor-opacity: 0.95;
+      --connector-stroke: var(--fg-color);
+      --connector-stroke-width: var(--ring-thickness);
+      --connector-opacity: 1;
+      --connector-ghost-opacity: 0.25;
+      --connector-outline-width: calc(var(--ring-thickness) + 8);
+      --connector-outline-highlight: var(--highlight-color);
+      --mode-btn-size: 20px;
+    }
+    body.dark-mode {
+      --canvas-bg: #000000;
+      --control-bg: #ffffff;
+      --control-fg: #000000;
+      --fg-color: #ffffff;
+      --ring-color: var(--fg-color);
+      --handle-fill: var(--control-bg);
+      --handle-stroke: var(--control-fg);
+      --dot-fill: var(--fg-color);
+      --anchor-fill: var(--control-bg);
+      --anchor-stroke: var(--control-fg);
+      --connector-stroke: var(--fg-color);
+      --mode-btn-border: var(--mode-btn-border-dark);
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+    body {
+      user-select: none;
+      background: var(--canvas-bg);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      gap: 10px;
+      box-sizing: border-box;
+    }
+    #initialDotSize {
+      user-select: text !important;
+    }
+    .top-bar, .bottom-bar {
+      width: var(--canvas-size);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--control-gap);
+      padding: 5px;
+      box-sizing: border-box;
+    }
+    .btn {
+      background: var(--control-bg);
+      color: var(--control-fg);
+      border: 1px solid rgba(0,0,0,0.08);
+      padding: var(--control-padding);
+      border-radius: var(--control-radius);
+      cursor: pointer;
+      font-size: 16px;
+      min-width: 44px;
+      height: var(--control-height);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+    .btn.secondary {
+      background: transparent;
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn:active {
+      transform: translateY(2px);
+    }
+    select {
+      padding: var(--control-padding);
+      border-radius: var(--control-radius);
+      border: 1px solid var(--control-fg);
+      font-size: 16px;
+      text-align: center;
+      background: var(--control-bg);
+      color: var(--control-fg);
+      height: 47px;
+      box-sizing: border-box;
+      appearance: none;
+    }
+    input[type="number"].btn-like {
+      padding: var(--control-padding);
+      border-radius: var(--control-radius);
+      border: 1px solid var(--control-fg);
+      font-size: 16px;
+      text-align: center;
+      background: var(--control-bg);
+      color: var(--control-fg);
+      height: 47px;
+      min-width: 60px;
+      width: 60px;
+      box-sizing: border-box;
+      -moz-appearance: textfield;
+      user-select: text !important;
+    }
+    input[type=number].btn-like::-webkit-outer-spin-button,
+    input[type=number].btn-like::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    .mode-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px;
+      border-radius: var(--control-radius);
+      border: 1px solid rgba(0,0,0,0.08);
+      background: var(--control-bg);
+      color: var(--control-fg);
+      height: var(--control-height);
+      min-width: var(--control-height);
+      box-sizing: border-box;
+      cursor: pointer;
+    }
+    .mode-btn:active {
+      transform: translateY(2px);
+    }
+    button:focus,
+    select:focus,
+    input:focus,
+    svg:focus,
+    g:focus {
+      outline: none;
+      box-shadow: none;
+    }
+    .dot-inner {
+      width: var(--mode-btn-size);
+      height: var(--mode-btn-size);
+      border-radius: 50%;
+      border: var(--mode-btn-border);
+      box-sizing: border-box;
+      display: inline-block;
+    }
+    .anchor-circle {
+      width: var(--mode-btn-size);
+      height: var(--mode-btn-size);
+      border-radius: 50%;
+      box-sizing: border-box;
+      border: 2px solid var(--control-fg);
+      background-color: var(--control-fg);
+      display: inline-block;
+    }
+    button[aria-pressed="true"] > .anchor-circle {
+      background-color: transparent;
+    }
+    .svg-canvas {
+      width: var(--canvas-size);
+      height: var(--canvas-height);
+      display: block;
+      touch-action: none;
+      user-select: none;
+      background: var(--canvas-bg);
+      border-radius: 0;
+      box-shadow: none;
+      border: none;
+      box-sizing: border-box;
+    }
+    #ring {
+      fill: none;
+      stroke: var(--ring-color);
+      stroke-width: var(--ring-thickness);
+    }
+    .handle {
+      fill: var(--handle-fill);
+      stroke: var(--handle-stroke);
+      stroke-width: var(--handle-stroke-width);
+      cursor: grab;
+      r: var(--handle-radius);
+    }
+    .handle:active {
+      cursor: grabbing;
+    }
+    .connector {
+      stroke: var(--connector-stroke);
+      stroke-linecap: round;
+      stroke-width: var(--connector-stroke-width);
+      stroke-opacity: var(--connector-opacity);
+    }
+    .connector.ghost {
+      stroke-opacity: var(--connector-ghost-opacity);
+      stroke-width: calc(var(--connector-stroke-width) * 0.8);
+    }
+    .connector-outline {
+      stroke: transparent;
+      stroke-linecap: round;
+      stroke-width: calc(var(--connector-outline-width) * 0.9);
+    }
+    .connector-outline.ghost {
+      stroke-opacity: var(--connector-ghost-opacity);
+      stroke-width: calc(var(--connector-outline-width) * 0.625);
+    }
+    .connector-outline.highlight {
+      stroke: var(--connector-outline-highlight);
+    }
+    .anchor {
+      fill: var(--anchor-fill);
+      stroke: var(--anchor-stroke);
+      stroke-width: 2;
+      opacity: var(--anchor-opacity);
+      pointer-events: none;
+      r: var(--anchor-radius);
+    }
+    .anchor.thick-anchor {
+      stroke-width: 6;
+      stroke: var(--anchor-stroke);
+      fill: var(--anchor-fill);
+    }
+    .anchor.center {
+      opacity: 1;
+      r: var(--anchor-center-radius);
+      stroke: none;
+    }
+    .dot {
+      fill: var(--dot-fill);
+      stroke: none;
+      cursor: grab;
+    }
+    .dot:active {
+      cursor: grabbing;
+    }
+    .dot.selected {
+      stroke: var(--dot-selected-stroke);
+      stroke-width: calc(var(--dot-stroke-width) * 0.6);
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar" aria-hidden="false">
+    <button id="plusBtn" class="btn" title="Add">+</button>
+    <button id="minusBtn" class="btn" title="Remove">−</button>
+    <select id="addTypeSelect" aria-label="Add type">
+      <option value="line">Line</option>
+      <option value="ghost">Ghost</option>
+      <option value="dot">Dot</option>
+    </select>
+    <input id="initialDotSize" class="btn-like" type="number" min="0.1" step="0.1" value="20" aria-label="Initial dot size (px)">
+  </div>
+  <svg id="svg" class="svg-canvas" viewBox="0 0 420 420" role="img" aria-label="Editable circle with draggable connectable lines and dots">
+    <circle id="ring" cx="210" cy="210" r="180"></circle>
+    <g id="anchors" aria-hidden="true"></g>
+    <g id="lines"></g>
+    <g id="dots"></g>
+  </svg>
+  <div class="bottom-bar" aria-hidden="false">
+    <button id="anchorsToggleBtn" class="mode-btn" title="Toggle anchors visibility" aria-pressed="true" aria-label="Show anchors">
+      <span class="anchor-circle" aria-hidden="true"></span>
+    </button>
+    <button id="modeBtn" class="mode-btn" title="Toggle theme">
+      <span class="dot-inner" id="dotInner" aria-hidden="true"></span>
+    </button>
+    <button id="downloadBtn" class="btn" title="Download">V</button>
+  </div>
+  <script>
+    (function(){
+      const svg = document.getElementById('svg');
+      const ring = document.getElementById('ring');
+      const anchorsGroup = document.getElementById('anchors');
+      const linesGroup = document.getElementById('lines');
+      const dotsGroup = document.getElementById('dots');
+      const plusBtn = document.getElementById('plusBtn');
+      const minusBtn = document.getElementById('minusBtn');
+      const addTypeSelect = document.getElementById('addTypeSelect');
+      const downloadBtn = document.getElementById('downloadBtn');
+      const modeBtn = document.getElementById('modeBtn');
+      const dotInner = document.getElementById('dotInner');
+      const initialDotSizeInput = document.getElementById('initialDotSize');
+      const anchorsToggleBtn = document.getElementById('anchorsToggleBtn');
+      let anchorsVisible = true;
+      const MAX_LINES = 20;
+      const MAX_DOTS = 20;
+      let ringStroke = parseFloat(getComputedStyle(ring).strokeWidth) || 30;
+      let baseDotRadius = ringStroke / 2;
+      let initialDotSize = Math.max(0.1, parseFloat(initialDotSizeInput.value) || baseDotRadius);
+      let lines = [];
+      let dots = [];
+      let selectedLineId = null;
+      let selectedDotId = null;
+      let nextLineId = 1;
+      let nextDotId = 1;
+      function ghostStrokeFor(ringStrokeVal){
+        return Math.max(1, Math.round(ringStrokeVal / 3));
+      }
+      function ringParams(){
+        return {
+          cx: parseFloat(ring.getAttribute('cx')),
+          cy: parseFloat(ring.getAttribute('cy')),
+          r: parseFloat(ring.getAttribute('r'))
+        };
+      }
+      function computeAnchors(){
+        const {cx,cy,r} = ringParams();
+        const anchors = [];
+        const steps = 48;
+        for (let i=0;i<steps;i++){
+          const angle = (Math.PI * 2 / steps) * i - Math.PI/2;
+          anchors.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle), center: false });
+        }
+        anchors.push({ x: cx, y: cy, center: true });
+        for (const l of lines){
+          try {
+            const x1 = parseFloat(l.h1.getAttribute('cx')) || 0;
+            const y1 = parseFloat(l.h1.getAttribute('cy')) || 0;
+            const x2 = parseFloat(l.h2.getAttribute('cx')) || 0;
+            const y2 = parseFloat(l.h2.getAttribute('cy')) || 0;
+            const mx = (x1 + x2) / 2;
+            const my = (y1 + y2) / 2;
+            anchors.push({ x: mx, y: my, center: false });
+          } catch (e) {}
+        }
+        return anchors;
+      }
+      function renderAnchors(){
+        anchorsGroup.innerHTML = '';
+        if (!anchorsVisible) return;
+        const anchors = computeAnchors();
+        const r = Math.max(5, baseDotRadius * 0.55);
+        const {cx,cy,r:rr} = ringParams();
+        anchors.forEach((a, i) => {
+      const distToCenter = Math.hypot(a.x - cx, a.y - cy);
+      const isCenter = a.center === true;
+      const isOnRing = Math.abs(distToCenter - rr) < 1.5;
+      if (!isOnRing && !isCenter) return;
+      const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      c.setAttribute('cx', a.x);
+      c.setAttribute('cy', a.y);
+      c.setAttribute('r', isCenter ? Math.max(7, r * 1.2) : r);
+      if (!isCenter && (i % 3 === 0)) {
+          c.setAttribute('class', 'anchor thick-anchor');
+        } else {
+          c.setAttribute('class', isCenter ? 'anchor center' : 'anchor');
+        }
+        anchorsGroup.appendChild(c);
+      });
+      }
+      function updateControls(){
+        const type = addTypeSelect.value;
+        plusBtn.disabled = (type === 'line' && lines.filter(l=>l.type==='line').length >= MAX_LINES) ||
+                           (type === 'dot' && dots.length >= MAX_DOTS) ||
+                           (type === 'ghost' && lines.filter(l=>l.type==='ghost').length >= MAX_LINES);
+        minusBtn.disabled = (type === 'line' && lines.filter(l=>l.type==='line').length === 0) ||
+                            (type === 'dot' && dots.length === 0) ||
+                            (type === 'ghost' && lines.filter(l=>l.type==='ghost').length === 0);
+      }
+      function applyThemeToSvgElements(){
+        const fg = getComputedStyle(document.body).getPropertyValue('--fg-color').trim();
+        const handleFill = getComputedStyle(document.body).getPropertyValue('--control-bg').trim();
+        const handleStroke = getComputedStyle(document.body).getPropertyValue('--control-fg').trim();
+        ring.setAttribute('stroke', fg);
+        svg.querySelectorAll('.connector').forEach(el => {
+          el.setAttribute('stroke', fg);
+        });
+        svg.querySelectorAll('.connector.ghost').forEach(el => {
+          el.setAttribute('stroke-opacity', 0.5);
+        });
+        svg.querySelectorAll('.handle').forEach(h => h.setAttribute('fill', handleFill));
+        svg.querySelectorAll('.dot').forEach(d => d.setAttribute('fill', fg));
+        svg.querySelectorAll('.anchor').forEach(a => {
+          a.setAttribute('fill', handleFill);
+          a.setAttribute('stroke', handleStroke);
+        });
+        updateModeDot();
+      }
+      function updateModeDot(){
+        const isDark = document.body.classList.contains('dark-mode');
+        dotInner.style.background = isDark ? '#000000' : '#ffffff';
+        dotInner.style.borderColor = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)';
+      }
+      function rand(min, max){
+        return Math.random() * (max - min) + min;
+      }
+      function randomPointInCircle(cx, cy, r){
+        const t = 2 * Math.PI * Math.random();
+        const u = Math.random() + Math.random();
+        const radius = u > 1 ? 2 - u : u;
+        const rr = radius * r;
+        return { x: cx + rr * Math.cos(t), y: cy + rr * Math.sin(t) };
+      }
+      function createLineOfType(type = 'line'){
+        const id = 'line' + (nextLineId++);
+        const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+        g.setAttribute('data-id', id);
+        g.setAttribute('tabindex', 0);
+        const outlineEl = document.createElementNS('http://www.w3.org/2000/svg','line');
+        outlineEl.setAttribute('class','connector-outline');
+        const lineEl = document.createElementNS('http://www.w3.org/2000/svg','line');
+        lineEl.setAttribute('class','connector');
+        lineEl.setAttribute('stroke-linecap','round');
+        const h1 = document.createElementNS('http://www.w3.org/2000/svg','circle');
+        h1.setAttribute('class','handle');
+        h1.setAttribute('r', Math.max(6, baseDotRadius * 0.45));
+        const h2 = document.createElementNS('http://www.w3.org/2000/svg','circle');
+        h2.setAttribute('class','handle');
+        h2.setAttribute('r', Math.max(6, baseDotRadius * 0.45));
+        const midAnchor = document.createElementNS('http://www.w3.org/2000/svg','circle');
+        midAnchor.setAttribute('class','anchor');
+        midAnchor.setAttribute('r', Math.max(5, baseDotRadius * 0.55));
+        midAnchor.setAttribute('pointer-events', 'none');
+        g.appendChild(outlineEl);
+        g.appendChild(lineEl);
+        g.appendChild(midAnchor);
+        g.appendChild(h1);
+        g.appendChild(h2);
+        linesGroup.appendChild(g);
+        const isGhost = (type === 'ghost');
+        if (isGhost){
+          lineEl.classList.add('ghost');
+          outlineEl.classList.add('ghost');
+          const ghostStroke = ghostStrokeFor(ringStroke);
+          lineEl.setAttribute('stroke-width', ghostStroke);
+          lineEl.setAttribute('stroke-opacity', 0.5);
+          outlineEl.setAttribute('stroke-width', ghostStroke + 6);
+          outlineEl.setAttribute('stroke-opacity', 0.5);
+        } else {
+          lineEl.setAttribute('stroke-width', ringStroke);
+          lineEl.setAttribute('stroke-opacity', 1);
+          outlineEl.setAttribute('stroke-width', ringStroke + 8);
+          outlineEl.setAttribute('stroke-opacity', 1);
+        }
+        const anchors = computeAnchors();
+        let i1 = Math.floor(rand(0, anchors.length));
+        let i2 = Math.floor(rand(0, anchors.length));
+        if (i1 === i2) i2 = (i2 + 1) % anchors.length;
+        const a1 = anchors[i1];
+        const a2 = anchors[i2];
+        setPos(h1, a1.x, a1.y);
+        setPos(h2, a2.x, a2.y);
+        updateLineFromHandles(lineEl, h1, h2, midAnchor);
+        updateLineFromHandles(outlineEl, h1, h2, midAnchor);
+        makeDraggableHandle(h1, outlineEl, h1, h2);
+        makeDraggableHandle(h2, outlineEl, h1, h2);
+        g.addEventListener('click', (ev) => { ev.stopPropagation(); selectLine(id); });
+        const obj = { id, group: g, outlineEl, lineEl, h1, h2, midAnchor, type };
+        lines.push(obj);
+        applyThemeToSvgElements();
+        updateControls();
+        renderAnchors();
+        return obj;
+      }
+      function setPos(handle, x, y){
+        handle.setAttribute('cx', x);
+        handle.setAttribute('cy', y);
+      }
+      function updateLineFromHandles(lineEl, h1, h2, midAnchor){
+        lineEl.setAttribute('x1', h1.getAttribute('cx'));
+        lineEl.setAttribute('y1', h1.getAttribute('cy'));
+        lineEl.setAttribute('x2', h2.getAttribute('cx'));
+        lineEl.setAttribute('y2', h2.getAttribute('cy'));
+        if (midAnchor){
+          const x1 = parseFloat(h1.getAttribute('cx')) || 0;
+          const y1 = parseFloat(h1.getAttribute('cy')) || 0;
+          const x2 = parseFloat(h2.getAttribute('cx')) || 0;
+          const y2 = parseFloat(h2.getAttribute('cy')) || 0;
+          const mx = (x1 + x2) / 2;
+          const my = (y1 + y2) / 2;
+          midAnchor.setAttribute('cx', mx);
+          midAnchor.setAttribute('cy', my);
+        }
+      }
+      function bringLineToFront(lineObj){
+        if (lineObj && lineObj.group) linesGroup.appendChild(lineObj.group);
+      }
+      function selectLine(id){
+        selectedLineId = id;
+        selectedDotId = null;
+        lines.forEach(l => {
+          if (l.id === id){
+            l.h1.classList.add('selected');
+            l.h2.classList.add('selected');
+            l.lineEl.classList.remove('selected');
+            l.outlineEl.classList.add('highlight');
+            bringLineToFront(l);
+          } else {
+            l.h1.classList.remove('selected');
+            l.h2.classList.remove('selected');
+            l.lineEl.classList.remove('selected');
+            l.outlineEl.classList.remove('highlight');
+          }
+        });
+        dots.forEach(d => d.el.classList.remove('selected'));
+      }
+      function clearSelection(){
+        selectedLineId = null;
+        selectedDotId = null;
+        lines.forEach(l => {
+          l.h1.classList.remove('selected');
+          l.h2.classList.remove('selected');
+          l.lineEl.classList.remove('selected');
+          l.outlineEl.classList.remove('highlight');
+        });
+        dots.forEach(d => d.el.classList.remove('selected'));
+      }
+      function removeLastLineOfType(type){
+        for (let i = lines.length - 1; i >= 0; i--){
+          if (lines[i].type === type){
+            const removed = lines.splice(i,1)[0];
+            removed.group.remove();
+            if (selectedLineId === removed.id) selectedLineId = null;
+            updateControls();
+            renderAnchors();
+            return;
+          }
+        }
+      }
+      function removeSelectedLine(){
+        if (!selectedLineId) return;
+        const idx = lines.findIndex(l=>l.id===selectedLineId);
+        if (idx>=0){
+          const l = lines[idx];
+          l.group.remove();
+          lines.splice(idx,1);
+          selectedLineId = null;
+          updateControls();
+          renderAnchors();
+        }
+      }
+      function makeDraggableHandle(handleEl, outlineEl, h1, h2){
+        let dragging=false, pointerId=null, offset={x:0,y:0};
+        handleEl.addEventListener('pointerdown', (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          pointerId = ev.pointerId;
+          handleEl.setPointerCapture(pointerId);
+          dragging=true;
+          const pt = clientToSvg(ev.clientX, ev.clientY);
+          const cx = parseFloat(handleEl.getAttribute('cx')) || 0;
+          const cy = parseFloat(handleEl.getAttribute('cy')) || 0;
+          offset.x = pt.x - cx;
+          offset.y = pt.y - cy;
+          selectParentLine(handleEl);
+        });
+        svg.addEventListener('pointermove', (ev)=>{
+          if (!dragging || ev.pointerId !== pointerId) return;
+          const pt = clientToSvg(ev.clientX, ev.clientY);
+          const nx = pt.x - offset.x;
+          const ny = pt.y - offset.y;
+          const vb = svg.viewBox.baseVal;
+          const cx = Math.min(Math.max(0, nx), vb.width);
+          const cy = Math.min(Math.max(0, ny), vb.height);
+          setPos(handleEl, cx, cy);
+          updateAllLines();
+        });
+        svg.addEventListener('pointerup', (ev)=>{
+          if (!dragging || ev.pointerId !== pointerId) return;
+          dragging=false;
+          try{ handleEl.releasePointerCapture(pointerId); }catch(e){}
+          pointerId=null;
+          const x = parseFloat(handleEl.getAttribute('cx'));
+          const y = parseFloat(handleEl.getAttribute('cy'));
+          const anchors = computeAnchors();
+          let bestAnchor = null, bestD = Infinity;
+          anchors.forEach(a => {
+            if (a.center) return;
+            const d = Math.hypot(a.x - x, a.y - y);
+            if (d < bestD){
+              bestD = d;
+              bestAnchor = a;
+            }
+          });
+          const center = anchors.find(a => a.center);
+          const dCenter = Math.hypot(center.x - x, center.y - y);
+          const nearestHandle = nearestHandleToPoint(handleEl, x, y);
+          const threshold = snapThreshold();
+          if (nearestHandle && nearestHandle.distance <= threshold){
+            const partner = nearestHandle.handle;
+            const px = parseFloat(partner.getAttribute('cx'));
+            const py = parseFloat(partner.getAttribute('cy'));
+            setPos(handleEl, px, py);
+          } else if (dCenter <= threshold){
+            setPos(handleEl, center.x, center.y);
+          } else if (bestAnchor && bestD <= threshold){
+            setPos(handleEl, bestAnchor.x, bestAnchor.y);
+          }
+          updateAllLines();
+        });
+        svg.addEventListener('pointercancel', (ev)=>{
+          if (!dragging || ev.pointerId !== pointerId) return;
+          dragging=false;
+          try{ handleEl.releasePointerCapture(pointerId); }catch(e){}
+          pointerId=null;
+        });
+      }
+      function selectParentLine(handleEl){
+        const parent = handleEl.parentNode;
+        if (!parent) return;
+        const id = parent.getAttribute('data-id');
+        if (id) selectLine(id);
+      }
+      function updateAllLines(){
+        lines.forEach(l => {
+          if (l.type === 'ghost'){
+            const ghostStroke = ghostStrokeFor(ringStroke);
+            l.lineEl.setAttribute('stroke-width', ghostStroke);
+            l.lineEl.setAttribute('stroke-opacity', 0.5);
+            l.outlineEl.setAttribute('stroke-width', ghostStroke + 6);
+            l.outlineEl.setAttribute('stroke-opacity', 0.5);
+            l.lineEl.classList.add('ghost');
+            l.outlineEl.classList.add('ghost');
+          } else {
+            l.lineEl.setAttribute('stroke-width', ringStroke);
+            l.lineEl.setAttribute('stroke-opacity', 1);
+            l.outlineEl.setAttribute('stroke-width', ringStroke + 8);
+            l.outlineEl.setAttribute('stroke-opacity', 1);
+            l.lineEl.classList.remove('ghost');
+            l.outlineEl.classList.remove('ghost');
+          }
+          updateLineFromHandles(l.lineEl, l.h1, l.h2, l.midAnchor);
+          updateLineFromHandles(l.outlineEl, l.h1, l.h2, l.midAnchor);
+        });
+        renderAnchors();
+      }
+      function clientToSvg(clientX, clientY){
+        const pt = svg.createSVGPoint();
+        pt.x = clientX;
+        pt.y = clientY;
+        const ctm = svg.getScreenCTM();
+        if (!ctm) return {x:clientX,y:clientY};
+        const inv = ctm.inverse();
+        const svgP = pt.matrixTransform(inv);
+        return {x:svgP.x, y:svgP.y};
+      }
+      function nearestHandleToPoint(ignoreHandle,x,y){
+        const all = svg.querySelectorAll('.handle');
+        let best=null, bestD=Infinity;
+        all.forEach(h=>{
+          if (h===ignoreHandle) return;
+          const hx=parseFloat(h.getAttribute('cx'))||0;
+          const hy=parseFloat(h.getAttribute('cy'))||0;
+          const d=Math.hypot(hx-x,hy-y);
+          if (d<bestD){
+            bestD=d;
+            best=h;
+          }
+        });
+        return best ? {handle:best, distance:bestD} : null;
+      }
+      function snapThreshold(){
+        const vb = svg.viewBox.baseVal;
+        return Math.max(10, vb.width * 0.03);
+      }
+      function createDot(){
+        if (dots.length >= MAX_DOTS) return null;
+        const id = 'dot' + (nextDotId++);
+        const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+        c.setAttribute('class','dot');
+        const sizeForNewDot = Math.max(0.1, parseFloat(initialDotSize) || baseDotRadius);
+        c.setAttribute('r', sizeForNewDot);
+        c.setAttribute('data-id', id);
+        const {cx,cy,r} = ringParams();
+        const maxAttempts = 60;
+        let placed = false;
+        let px = cx, py = cy;
+        for (let attempt=0; attempt<maxAttempts && !placed; attempt++){
+          const p = randomPointInCircle(cx, cy, r - sizeForNewDot - 2);
+          px = p.x;
+          py = p.y;
+          let ok = true;
+          for (const d of dots){
+            const dx = parseFloat(d.el.getAttribute('cx')) - px;
+            const dy = parseFloat(d.el.getAttribute('cy')) - py;
+            const dist = Math.hypot(dx, dy);
+            if (dist < (d.size + sizeForNewDot + 4)){
+              ok = false;
+              break;
+            }
+          }
+          if (ok) placed = true;
+        }
+        if (!placed){
+          px = cx + rand(-10,10);
+          py = cy + rand(-10,10);
+        }
+        c.setAttribute('cx', px);
+        c.setAttribute('cy', py);
+        dotsGroup.appendChild(c);
+        makeDraggableDot(c);
+        c.addEventListener('click', (ev) => { ev.stopPropagation(); selectDot(id); });
+        const obj = { id, el: c, size: sizeForNewDot };
+        dots.push(obj);
+        applyThemeToSvgElements();
+        updateControls();
+        return obj;
+      }
+      function bringDotToFront(dotObj){
+        if (dotObj && dotObj.el) dotsGroup.appendChild(dotObj.el);
+      }
+      function selectDot(id){
+        selectedDotId = id;
+        selectedLineId = null;
+        dots.forEach(d => {
+          if (d.id === id){
+            d.el.classList.add('selected');
+            bringDotToFront(d);
+          } else d.el.classList.remove('selected');
+        });
+        lines.forEach(l => {
+          l.h1.classList.remove('selected');
+          l.h2.classList.remove('selected');
+          l.outlineEl.classList.remove('highlight');
+          l.lineEl.classList.remove('selected');
+        });
+      }
+      function removeLastDot(){
+        if (!dots.length) return;
+        const last = dots.pop();
+        last.el.remove();
+        if (selectedDotId === last.id) selectedDotId = null;
+        updateControls();
+      }
+      function removeSelectedDot(){
+        if (!selectedDotId) return;
+        const idx = dots.findIndex(d=>d.id===selectedDotId);
+        if (idx>=0){
+          dots[idx].el.remove();
+          dots.splice(idx,1);
+          selectedDotId = null;
+          updateControls();
+        }
+      }
+      function makeDraggableDot(dotEl){
+        let dragging=false, pointerId=null, offset={x:0,y:0};
+        dotEl.addEventListener('pointerdown', (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          pointerId = ev.pointerId;
+          dotEl.setPointerCapture(pointerId);
+          dragging=true;
+          const pt = clientToSvg(ev.clientX, ev.clientY);
+          const cx = parseFloat(dotEl.getAttribute('cx'))||0;
+          const cy = parseFloat(dotEl.getAttribute('cy'))||0;
+          offset.x = pt.x - cx;
+          offset.y = pt.y - cy;
+          selectDot(dotEl.dataset.id);
+        });
+        svg.addEventListener('pointermove', (ev)=>{
+          if (!dragging || ev.pointerId !== pointerId) return;
+          const pt = clientToSvg(ev.clientX, ev.clientY);
+          const nx = pt.x - offset.x;
+          const ny = pt.y - offset.y;
+          const vb = svg.viewBox.baseVal;
+          const cx = Math.min(Math.max(0, nx), vb.width);
+          const cy = Math.min(Math.max(0, ny), vb.height);
+          dotEl.setAttribute('cx', cx);
+          dotEl.setAttribute('cy', cy);
+        });
+        svg.addEventListener('pointerup', (ev)=>{
+          if (!dragging || ev.pointerId !== pointerId) return;
+          dragging=false;
+          try{ dotEl.releasePointerCapture(pointerId); }catch(e){}
+          pointerId=null;
+          const x = parseFloat(dotEl.getAttribute('cx'));
+          const y = parseFloat(dotEl.getAttribute('cy'));
+          const {cx,cy,r} = ringParams();
+          const dotObj = dots.find(dd => dd.id === dotEl.getAttribute('data-id'));
+          const size = dotObj ? dotObj.size : parseFloat(dotEl.getAttribute('r')) || baseDotRadius;
+          const threshold = Math.max(10, svg.viewBox.baseVal.width * 0.03);
+          const dCenter = Math.hypot(cx - x, cy - y);
+          if (dCenter <= threshold){
+            dotEl.setAttribute('cx', cx);
+            dotEl.setAttribute('cy', cy);
+            return;
+          }
+          let bestGhost = null, bestD = Infinity;
+          for (const l of lines){
+            if (l.type !== 'ghost') continue;
+            try {
+              const mx = parseFloat(l.midAnchor.getAttribute('cx'));
+              const my = parseFloat(l.midAnchor.getAttribute('cy'));
+              const d = Math.hypot(mx - x, my - y);
+              if (d < bestD){
+                bestD = d;
+                bestGhost = { x: mx, y: my, dist: d };
+              }
+            } catch (e) {}
+          }
+          if (bestGhost && bestGhost.dist <= threshold){
+            dotEl.setAttribute('cx', bestGhost.x);
+            dotEl.setAttribute('cy', bestGhost.y);
+            return;
+          }
+        });
+        svg.addEventListener('pointercancel', (ev)=>{
+          if (!dragging || ev.pointerId !== pointerId) return;
+          dragging=false;
+          try{ dotEl.releasePointerCapture(pointerId); }catch(e){}
+          pointerId=null;
+        });
+      }
+      function validateBeforeExport(){
+        const problems = [];
+        const anchors = computeAnchors();
+        const threshold = snapThreshold();
+        function nearestAnchorPoint(x,y){
+          let best = null, bestD = Infinity;
+          anchors.forEach(a => {
+            const d = Math.hypot(a.x - x, a.y - y);
+            if (d < bestD){
+              bestD = d;
+              best = { anchor: a, distance: d };
+            }
+          });
+          return best;
+        }
+        lines.forEach((l, idx) => {
+          const x1 = parseFloat(l.h1.getAttribute('cx'));
+          const y1 = parseFloat(l.h1.getAttribute('cy'));
+          const x2 = parseFloat(l.h2.getAttribute('cx'));
+          const y2 = parseFloat(l.h2.getAttribute('cy'));
+          const n1 = nearestAnchorPoint(x1,y1);
+          const n2 = nearestAnchorPoint(x2,y2);
+          if (!n1 || n1.distance > threshold) problems.push(`Line ${idx+1}: endpoint 1 is not snapped to a snapping point`);
+          if (!n2 || n2.distance > threshold) problems.push(`Line ${idx+1}: endpoint 2 is not snapped to a snapping point`);
+        });
+        const {cx,cy,r} = ringParams();
+        dots.forEach((d, idx) => {
+          const x = parseFloat(d.el.getAttribute('cx'));
+          const y = parseFloat(d.el.getAttribute('cy'));
+          const dist = Math.hypot(cx - x, cy - y);
+          if (dist > (r - d.size + 0.0001)) problems.push(`Dot ${idx+1}: not fully inside the circle`);
+        });
+        return problems;
+      }
+      function updateAnchorsVisibility(){
+        anchorsGroup.style.display = anchorsVisible ? '' : 'none';
+        anchorsToggleBtn.setAttribute('aria-pressed', anchorsVisible.toString());
+        anchorsToggleBtn.setAttribute('title', anchorsVisible ? 'Hide anchors' : 'Show anchors');
+        anchorsToggleBtn.setAttribute('aria-label', anchorsVisible ? 'Show anchors' : 'Hide anchors');
+        renderAnchors();
+        lines.forEach(line => {
+          if (line.type === 'ghost') {
+            line.group.style.display = anchorsVisible ? '' : 'none';
+          }
+          if (line.midAnchor) {
+            line.midAnchor.style.display = anchorsVisible ? '' : 'none';
+          }
+          if (line.h1) {
+            if (anchorsVisible) {
+              line.h1.style.opacity = '1';
+              line.h1.style.pointerEvents = 'auto';
+            } else {
+              line.h1.style.opacity = '0';
+              line.h1.style.pointerEvents = 'auto';
+            }
+          }
+          if (line.h2) {
+            if (anchorsVisible) {
+              line.h2.style.opacity = '1';
+              line.h2.style.pointerEvents = 'auto';
+            } else {
+              line.h2.style.opacity = '0';
+              line.h2.style.pointerEvents = 'auto';
+            }
+          }
+        });
+      }
+      anchorsToggleBtn.addEventListener('click', () => {
+        anchorsVisible = !anchorsVisible;
+        updateAnchorsVisibility();
+      });
+      downloadBtn.addEventListener('click', () => {
+        const problems = validateBeforeExport();
+        if (problems.length){
+          alert('Cannot export. Fix the following first:\n' + problems.join('\n'));
+          return;
+        }
+        const vb = svg.viewBox.baseVal;
+        const size = Math.round(vb.width);
+        const scale = window.devicePixelRatio || 1;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(size * scale);
+        canvas.height = Math.round(size * scale);
+        const ctx = canvas.getContext('2d');
+        const fg = getComputedStyle(document.body).getPropertyValue('--fg-color').trim();
+        const {cx,cy,r} = ringParams();
+        ctx.save();
+        ctx.scale(scale, scale);
+        ctx.lineWidth = ringStroke;
+        ctx.strokeStyle = fg;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.restore();
+        lines.forEach(l => {
+          if (l.type === 'ghost') return;
+          const x1 = parseFloat(l.lineEl.getAttribute('x1'));
+          const y1 = parseFloat(l.lineEl.getAttribute('y1'));
+          const x2 = parseFloat(l.lineEl.getAttribute('x2'));
+          const y2 = parseFloat(l.lineEl.getAttribute('y2'));
+          ctx.save();
+          ctx.scale(scale, scale);
+          ctx.lineWidth = ringStroke;
+          ctx.lineCap = 'round';
+          ctx.strokeStyle = fg;
+          ctx.beginPath();
+          ctx.moveTo(x1,y1);
+          ctx.lineTo(x2,y2);
+          ctx.stroke();
+          ctx.restore();
+        });
+        dots.forEach(d => {
+          const x = parseFloat(d.el.getAttribute('cx'));
+          const y = parseFloat(d.el.getAttribute('cy'));
+          ctx.save();
+          ctx.scale(scale, scale);
+          ctx.fillStyle = fg;
+          ctx.beginPath();
+          ctx.arc(x,y,d.size,0,Math.PI*2);
+          ctx.fill();
+          ctx.restore();
+        });
+        canvas.toBlob(function(blob){
+          if (!blob){
+            const url = canvas.toDataURL('image/png');
+            const w = window.open(url, '_blank');
+            if (!w) alert('Popup blocked. Right-click the image and save it.');
+            return;
+          }
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'circle.png';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+        }, 'image/png');
+      });
+      function toggleTheme(){
+        const isDark = document.body.classList.toggle('dark-mode');
+        ringStroke = parseFloat(getComputedStyle(ring).strokeWidth) || ringStroke;
+        baseDotRadius = ringStroke / 2;
+        svg.querySelectorAll('.dot').forEach(d => {
+          const id = d.getAttribute('data-id');
+          const obj = dots.find(x => x.id === id);
+          if (obj) d.setAttribute('r', obj.size);
+        });
+        svg.querySelectorAll('.handle').forEach(h => h.setAttribute('r', Math.max(6, baseDotRadius * 0.45)));
+        lines.forEach(l => {
+          if (l.midAnchor) l.midAnchor.setAttribute('r', Math.max(5, baseDotRadius * 0.55));
+        });
+        renderAnchors();
+        applyThemeToSvgElements();
+      }
+      plusBtn.addEventListener('click', () => {
+        const type = addTypeSelect.value;
+        if (type === 'line') {
+          const c = createLineOfType('line');
+          if (c) selectLine(c.id);
+        } else if (type === 'ghost') {
+          const c = createLineOfType('ghost');
+          if (c) selectLine(c.id);
+        } else {
+          const c = createDot();
+          if (c) selectDot(c.id);
+        }
+      });
+      minusBtn.addEventListener('click', () => {
+        const type = addTypeSelect.value;
+        if (type === 'line') {
+          if (selectedLineId) removeSelectedLine();
+          else removeLastLineOfType('line');
+        } else if (type === 'ghost') {
+          if (selectedLineId){
+            const sel = lines.find(l => l.id === selectedLineId);
+            if (sel && sel.type === 'ghost') removeSelectedLine();
+            else removeLastLineOfType('ghost');
+          } else removeLastLineOfType('ghost');
+        } else {
+          if (selectedDotId) removeSelectedDot();
+          else removeLastDot();
+        }
+      });
+      addTypeSelect.addEventListener('change', () => {
+        updateControls();
+      });
+      modeBtn.addEventListener('click', () => {
+        toggleTheme();
+      });
+      initialDotSizeInput.addEventListener('input', (e) => {
+        let val = e.target.value.trim();
+        if (val === '') {
+          initialDotSizeInput.value = '';
+          return;
+        }
+        let v = parseInt(val, 10);
+        if (!Number.isInteger(v)) return;
+        if (v < 1) v = 1;
+        else if (v > 100) v = 100;
+        initialDotSize = v;
+        initialDotSizeInput.value = v;
+      });
+      initialDotSizeInput.addEventListener('change', (e) => {
+        let val = e.target.value.trim();
+        if (val === '') {
+          initialDotSize = 20;
+          initialDotSizeInput.value = 20;
+          return;
+        }
+        let v = parseInt(val, 10);
+        if (!Number.isInteger(v)) {
+          initialDotSize = 20;
+          initialDotSizeInput.value = 20;
+          return;
+        }
+        if (v < 1) v = 1;
+        else if (v > 100) v = 100;
+        initialDotSize = v;
+        initialDotSizeInput.value = v;
+      });
+      svg.addEventListener('click', (ev) => {
+        if (ev.target === svg || ev.target === ring || ev.target.parentNode === anchorsGroup) clearSelection();
+      });
+      window.addEventListener('keydown', (ev) => {
+        if (document.activeElement === initialDotSizeInput) return;
+        if ((ev.key === 'Delete' || ev.key === 'Backspace')) {
+          if (selectedLineId) removeSelectedLine();
+          else if (selectedDotId) removeSelectedDot();
+        }
+      });
+      window.addEventListener('resize', () => {
+        renderAnchors();
+        ringStroke = parseFloat(getComputedStyle(ring).strokeWidth) || ringStroke;
+        baseDotRadius = ringStroke / 2;
+        svg.querySelectorAll('.dot').forEach(d => {
+          const id = d.getAttribute('data-id');
+          const obj = dots.find(x => x.id === id);
+          if (obj) d.setAttribute('r', obj.size);
+        });
+        svg.querySelectorAll('.handle').forEach(h => h.setAttribute('r', Math.max(6, baseDotRadius * 0.45)));
+        lines.forEach(l => {
+          if (l.midAnchor) l.midAnchor.setAttribute('r', Math.max(5, baseDotRadius * 0.55));
+        });
+        updateAllLines();
+        updateControls();
+      });
+      function init(){
+        initialDotSize = Math.max(0.1, parseFloat(initialDotSizeInput.value) || baseDotRadius);
+        renderAnchors();
+        updateControls();
+        applyThemeToSvgElements();
+        updateModeDot();
+        updateAnchorsVisibility();
+      }
+      const pressedKeys = new Set();
+      function handleKeyDown(ev) {
+        if (document.activeElement === initialDotSizeInput) {
+          return;
+        }
+        const key = ev.key.toLowerCase();
+        if (pressedKeys.has(key)) return;
+        pressedKeys.add(key);
+        if (['f', 'g', 'v', 'x', 'z', 'a', 's', 'd'].includes(key) || (key === 'backspace')) {
+          ev.preventDefault();
+        }
+        const shift = ev.shiftKey;
+        const currentType = addTypeSelect.value;
+        if (key === 'a') {
+          plusBtn.click();
+        } else if (key === 's') {
+          minusBtn.click();
+        } else if (key === 'd') {
+          const types = ['line', 'ghost', 'dot'];
+          const currentIndex = types.indexOf(currentType);
+          const nextIndex = (currentIndex + 1) % types.length;
+          addTypeSelect.value = types[nextIndex];
+          addTypeSelect.dispatchEvent(new Event('change'));
+        } else if (key === 'f' || key === 'g') {
+          let delta = key === 'g' ? -1 : +1;
+          if (shift) delta *= 5;
+          let val = parseFloat(initialDotSizeInput.value) || 20;
+          val = Math.round(val + delta);
+          val = Math.max(1, Math.min(100, val));
+          initialDotSizeInput.value = val;
+          initialDotSize = val;
+          initialDotSizeInput.dispatchEvent(new Event('change'));
+        } else if (key === 'z') {
+          anchorsVisible = !anchorsVisible;
+          updateAnchorsVisibility();
+        } else if (key === 'x') {
+          toggleTheme();
+        } else if (key === 'v') {
+          downloadBtn.click();
+        } else if (key === 'backspace') {
+          if (selectedLineId) removeSelectedLine();
+          else if (selectedDotId) removeSelectedDot();
+        }
+      }
+      function handleKeyUp(ev) {
+        const key = ev.key.toLowerCase();
+        pressedKeys.delete(key);
+      }
+      window.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('keyup', handleKeyUp);
+      window.addEventListener('contextmenu', (e) => e.preventDefault());
+      init();
+      window._toggleTheme = toggleTheme;
+    })();
+  </script>
+</body>
+
+</html>
